@@ -27,7 +27,7 @@ int validate_distribution_hub(int argc, char *argv[], int *order_count, int *max
 
     if (*order_count <= 0 || *max_a <= 0 || *max_b <= 0 || *max_c <= 0)
     {
-        printf("Błąd: Wszystkie liczby muszą być większe od 0.\n");
+        printf("ERR: All numbers must be greater than 0.\n");
         return 0;
     }
 

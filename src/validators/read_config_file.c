@@ -7,31 +7,42 @@ int read_config_file(const char *file_path, const char *key, int *a, int *b, int
     FILE *file = fopen(file_path, "r");
     if (!file)
     {
-        printf("Nie można otworzyć pliku: %s\n", file_path);
+        printf("ERR: can't open file %s\n", file_path);
         return 0;
     }
 
     char line[256];
     while (fgets(line, sizeof(line), file))
     {
-        char *token = strtok(line, "x");
-        if (token)
-        {
-            int quantity = atoi(token);
-            token = strtok(NULL, "\n");
+        line[strcspn(line, "\n")] = 0;
 
-            if (token && strcmp(token, "A") == 0)
+        char *token = strtok(line, ",");
+        while (token)
+        {
+            int quantity = 0;
+            char type = '\0';
+
+            char *x_pos = strchr(token, 'x');
+            if (x_pos)
+            {
+                *x_pos = '\0';
+                quantity = atoi(token);
+                type = *(x_pos + 1);
+            }
+
+            if (type == 'A')
             {
                 *a = quantity;
             }
-            else if (token && strcmp(token, "B") == 0)
+            else if (type == 'B')
             {
                 *b = quantity;
             }
-            else if (token && strcmp(token, "C") == 0)
+            else if (type == 'C')
             {
                 *c = quantity;
             }
+            token = strtok(NULL, ",");
         }
     }
 
