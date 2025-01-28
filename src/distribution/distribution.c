@@ -1,12 +1,12 @@
 #include <stdio.h>
-#include "validators/validator.h"
+#include "../validators/validator.h"
 
 int main(int argc, char *argv[])
 {
     char *key;
     int order_count, max_a, max_b, max_c;
 
-    if (!validate_arguments(argc, argv, &order_count, &max_a, &max_b, &max_c))
+    if (!validate_distribution_hub(argc, argv, &order_count, &max_a, &max_b, &max_c))
     {
         return 1;
     }

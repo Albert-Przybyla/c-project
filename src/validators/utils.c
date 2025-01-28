@@ -1,13 +1,13 @@
 #include <ctype.h>
 #include <stdbool.h>
 
-bool is_number(const char *str)
+int is_number(const char *str)
 {
     while (*str)
     {
         if (!isdigit(*str))
-            return false;
+            return 0;
         str++;
     }
-    return true;
+    return 1;
 }

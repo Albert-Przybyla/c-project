@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -I./validators
 
-SRC = distribution.c validators/distribution_hub.c validators/utils.c
+SRC = src/distribution/distribution.c src/validators/distribution_hub.c src/validators/utils.c
 OBJ = $(SRC:.c=.o)
 EXEC = dystrybutornia
 
