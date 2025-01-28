@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -I./validators
 
 
-SRC_DISTRIBUTION_HUB = src/distribution_hub/distribution_hub.c src/validators/distribution_hub.c src/validators/utils.c
+SRC_DISTRIBUTION_HUB = src/distribution_hub/distribution_hub.c src/validators/distribution_hub.c src/validators/utils.c src/order/order.c
 OBJ_DISTRIBUTION_HUB = $(SRC_DISTRIBUTION_HUB:.c=.o)
 EXEC_DISTRIBUTION_HUB = dystrybutornia
 

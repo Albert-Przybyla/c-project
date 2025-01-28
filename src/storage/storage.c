@@ -1,6 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
 #include "../validators/validator.h"
+
+void runCouriers()
+{
+    printf("Courier %d statred\n", 1);
+}
 
 int main(int argc, char *argv[])
 {
@@ -18,7 +26,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("Surowce w magazynach:\n");
+    printf("Storage start state:\n");
     printf("A: %d\n", a);
     printf("B: %d\n", b);
     printf("C: %d\n", c);
