@@ -5,7 +5,9 @@
 #include <sys/msg.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <semaphore.h>
 
+#include "../logger/logger.h"
 #include "../validators/validator.h"
 #include "../validators/utils.h"
 #include "../order/order.h"
@@ -45,12 +47,12 @@ void initSharedMemory(int shmid, int a, int b, int c, int price_a, int price_b, 
     shared_data->price_b = price_b;
     shared_data->price_c = price_c;
 
-    printf("Shared memory initialized: A=%d, B=%d, C=%d\n", shared_data->A, shared_data->B, shared_data->C);
+    init("Shared memory initialized: A=%d, B=%d, C=%d\n", shared_data->A, shared_data->B, shared_data->C);
 }
 
 void runCourier(int msgid, int shmid)
 {
-    printf("Courier %d started\n", getpid());
+    init("Courier %d started\n", getpid());
     while (1)
     {
         Order order;
@@ -59,7 +61,7 @@ void runCourier(int msgid, int shmid)
             perror("msgrcv");
             exit(1);
         }
-        printf("Courier %d received new order: A=%d, B=%d, C=%d\n", getpid(), order.A, order.B, order.C);
+        info("COURIER %d RECEIVED ORDER: A=%d, B=%d, C=%d\n", getpid(), order.A, order.B, order.C);
         SharedData *shared_data = (SharedData *)shmat(shmid, NULL, 0);
         if (shared_data == (void *)-1)
         {
@@ -72,10 +74,9 @@ void runCourier(int msgid, int shmid)
             shared_data->B -= order.B;
             shared_data->C -= order.C;
 
-            printf("new stock: A=%d, B=%d, C=%d\n", shared_data->A, shared_data->B, shared_data->C);
+            warn("NEW STOCK: A=%d, B=%d, C=%d\n", shared_data->A, shared_data->B, shared_data->C);
 
             int total_cost = (order.A * shared_data->price_a) + (order.B * shared_data->price_b) + (order.C * shared_data->price_c);
-            printf("Total cost for the order: %d\n", total_cost);
 
             PaymentResponse payment_response;
             payment_response.mtype = 2;
@@ -89,7 +90,7 @@ void runCourier(int msgid, int shmid)
         }
         else
         {
-            printf("Courier %d could not process order: A=%d, B=%d, C=%d\n", getpid(), order.A, order.B, order.C);
+            warn("COURIER %d OUT OF STOCK: A=%d, B=%d, C=%d\n", getpid(), order.A, order.B, order.C);
             exit(0);
         }
 
@@ -118,7 +119,7 @@ int main(int argc, char *argv[])
     int shmid = createSharedMemory();
     initSharedMemory(shmid, a, b, c, price_a, price_b, price_c);
 
-    printf("Storage initialized:\n\tStock: A=%d, B=%d, C=%d\n\tPrices: A=%d GLD, B=%d GLD, C=%d GLD\n", a, b, c, price_a, price_b, price_c);
+    init("STORAGE STARTED:\n\tSTOCK: A=%d, B=%d, C=%d\n\tPRICES: A=%d GLD, B=%d GLD, C=%d GLD\n", a, b, c, price_a, price_b, price_c);
 
     int msgid = msgget(key, IPC_CREAT | 0666);
     if (msgid < 0)
@@ -136,12 +137,22 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("Storage started\n");
-
     for (int i = 0; i < COURIER_COUNT; i++)
     {
         wait(NULL);
     }
+
+    sem_t *sem = sem_open("/stop_semaphore", O_CREAT, 0666, 0);
+    if (sem == SEM_FAILED)
+    {
+        perror("sem_open");
+        return 1;
+    }
+
+    printf("Wysyłam 'sygnał' poprzez semafor...\n");
+    sem_post(sem);
+
+    sem_close(sem);
 
     msgctl(msgid, IPC_RMID, NULL);
     return 0;

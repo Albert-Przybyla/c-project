@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/msg.h>
+#include <semaphore.h>
+
 #include "../validators/validator.h"
 #include "../order/order.h"
 #include "../validators/utils.h"
@@ -60,7 +62,7 @@ int main(int argc, char *argv[])
         }
         printf("Sent Order: A=%d, B=%d, C=%d\n", order.A, order.B, order.C);
 
-        receive_payment_response(msgid);
+        // receive_payment_response(msgid);
         usleep(500000);
     }
 
