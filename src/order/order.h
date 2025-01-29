@@ -3,6 +3,7 @@
 
 typedef struct
 {
+    long mtype;
     int A;
     int B;
     int C;

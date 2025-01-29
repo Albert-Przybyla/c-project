@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int read_config_file(const char *file_path, const char *key, int *a, int *b, int *c, int *price_a, int *price_b, int *price_c)
+int read_config_file(const char *file_path, int *a, int *b, int *c, int *price_a, int *price_b, int *price_c)
 {
     FILE *file = fopen(file_path, "r");
     if (!file)

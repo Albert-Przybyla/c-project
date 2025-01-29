@@ -6,6 +6,7 @@
 #include <sys/shm.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/msg.h>
 #include "../validators/validator.h"
 #include "../order/order.h"
 
@@ -28,40 +29,21 @@ int main(int argc, char *argv[])
     srand(time(NULL));
 
     key_t shm_key = ftok(key, 'R');
-    int shmid = shmget(shm_key, sizeof(Order) * order_count, IPC_CREAT | 0666);
-    if (shmid < 0)
-    {
-        perror("shmget");
-        return 1;
-    }
-
-    Order *orders = (Order *)shmat(shmid, NULL, 0);
-    if (orders == (Order *)-1)
-    {
-        perror("shmat");
-        return 1;
-    }
-
+    int msgid = msgget(shm_key, 0666 | IPC_CREAT);
     for (int i = 0; i < order_count; i++)
     {
-        orders[i] = generate_order(max_a, max_b, max_c);
-        printf("Zamówienie %d: A = %d, B = %d, C = %d\n", i + 1, orders[i].A, orders[i].B, orders[i].C);
+        Order order = generate_order(max_a, max_b, max_c);
+        if (msgsnd(msgid, &order, sizeof(Order) - sizeof(long), 0) < 0)
+        {
+            perror("msgsnd");
+            return 1;
+        }
+        printf("Sent Order: A=%d, B=%d, C=%d\n", order.A, order.B, order.C);
+        usleep(500000);
         usleep(500000);
     }
 
-    if (shmdt(orders) == -1)
-    {
-        perror("shmdt");
-        return 1;
-    }
-
-    if (shmctl(shmid, IPC_RMID, NULL) == -1)
-    {
-        perror("shmctl");
-        return 1;
-    }
-
-    printf("Zakończono generowanie zamówień.\n");
+    printf("Order generation completed. Orders sent to storage.\n");
 
     return 0;
 }

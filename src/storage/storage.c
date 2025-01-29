@@ -2,12 +2,30 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/msg.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 
 #include "../validators/validator.h"
+#include "../order/order.h"
 
-void runCouriers()
+#define COURIER_COUNT 3
+
+void runCourier(int msgid)
 {
-    printf("Courier %d statred\n", 1);
+    printf("Courier %d started\n", getpid());
+    while (1)
+    {
+        Order order;
+        if (msgrcv(msgid, &order, sizeof(Order) - sizeof(long), 1, 0) < 0)
+        {
+            perror("msgrcv");
+            exit(1);
+        }
+        printf("Courier %d received new order: A=%d, B=%d, C=%d\n", getpid(), order.A, order.B, order.C);
+
+        usleep(1500000);
+    }
 }
 
 int main(int argc, char *argv[])
@@ -22,18 +40,35 @@ int main(int argc, char *argv[])
     int a = 0, b = 0, c = 0;
     int price_a = 0, price_b = 0, price_c = 0;
 
-    if (!read_config_file(config_file_path, key, &a, &b, &c, &price_a, &price_b, &price_c))
+    if (!read_config_file(config_file_path, &a, &b, &c, &price_a, &price_b, &price_c))
     {
         return 1;
     }
 
-    printf("Storage start state:\n");
-    printf("A: %d\n", a);
-    printf("B: %d\n", b);
-    printf("C: %d\n", c);
-    printf("Price A: %d\n", price_a);
-    printf("Price B: %d\n", price_b);
-    printf("Price C: %d\n", price_c);
+    printf("Storage initialized:\n\tStock: A=%d, B=%d, C=%d\n\tPrices: A=%d GLD, B=%d GLD, C=%d GLD\n", a, b, c, price_a, price_b, price_c);
 
+    key_t msg_key = ftok(key, 'M');
+    int msgid = msgget(msg_key, 0666 | IPC_CREAT);
+    if (msgid < 0)
+    {
+        perror("msgget");
+        return 1;
+    }
+
+    for (int i = 0; i < COURIER_COUNT; i++)
+    {
+        if (fork() == 0)
+        {
+            runCourier(msgid);
+            exit(0);
+        }
+    }
+
+    for (int i = 0; i < COURIER_COUNT; i++)
+    {
+        wait(NULL);
+    }
+
+    msgctl(msgid, IPC_RMID, NULL);
     return 0;
 }

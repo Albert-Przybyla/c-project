@@ -5,6 +5,7 @@
 Order generate_order(int max_A, int max_B, int max_C)
 {
     Order order;
+    order.mtype = 1;
     order.A = rand() % (max_A + 1);
     order.B = rand() % (max_B + 1);
     order.C = rand() % (max_C + 1);
