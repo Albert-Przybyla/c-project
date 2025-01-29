@@ -19,6 +19,7 @@ typedef struct
 {
     int A, B, C;
     int price_a, price_b, price_c;
+    int GLD;
 } SharedData;
 
 int createSharedMemory()
@@ -47,6 +48,7 @@ void initSharedMemory(int shmid, int a, int b, int c, int price_a, int price_b, 
     shared_data->price_a = price_a;
     shared_data->price_b = price_b;
     shared_data->price_c = price_c;
+    shared_data->GLD = 0;
 }
 
 void runCourier(int msgid, int shmid)
@@ -89,6 +91,7 @@ void runCourier(int msgid, int shmid)
             state("NEW STOCK: A=%d, B=%d, C=%d\n", shared_data->A, shared_data->B, shared_data->C);
 
             int total_cost = (order.A * shared_data->price_a) + (order.B * shared_data->price_b) + (order.C * shared_data->price_c);
+            shared_data->GLD += total_cost;
 
             PaymentResponse payment_response;
             payment_response.mtype = 2;
@@ -164,6 +167,14 @@ int main(int argc, char *argv[])
         exit(1);
     }
     info("STOP MESSAGE SENT\n");
+    SharedData *shared_data = (SharedData *)shmat(shmid, NULL, 0);
+    if (shared_data == (void *)-1)
+    {
+        perror("shmat");
+        exit(1);
+    }
+    info("STOCK: A=%d, B=%d, C=%d\n", shared_data->A, shared_data->B, shared_data->C);
+    info("TOTAL MONEY: %d GLD\n", shared_data->GLD);
     shmctl(shmid, IPC_RMID, NULL);
     return 0;
 }
