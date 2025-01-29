@@ -6,6 +6,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <semaphore.h>
+#include <time.h>
 
 #include "../logger/logger.h"
 #include "../validators/validator.h"
@@ -46,35 +47,46 @@ void initSharedMemory(int shmid, int a, int b, int c, int price_a, int price_b, 
     shared_data->price_a = price_a;
     shared_data->price_b = price_b;
     shared_data->price_c = price_c;
-
-    init("Shared memory initialized: A=%d, B=%d, C=%d\n", shared_data->A, shared_data->B, shared_data->C);
 }
 
 void runCourier(int msgid, int shmid)
 {
     init("Courier %d started\n", getpid());
+
+    time_t start_time = time(NULL);
+
     while (1)
     {
         Order order;
-        if (msgrcv(msgid, &order, sizeof(Order) - sizeof(long), 1, 0) < 0)
+        if (msgrcv(msgid, &order, sizeof(Order) - sizeof(long), 1, IPC_NOWAIT) < 0)
         {
-            perror("msgrcv");
-            exit(1);
+            if (time(NULL) - start_time >= 150)
+            {
+                info("COURIER %d TIMEOUT: No order received for 150 seconds, exiting.\n", getpid());
+                break;
+            }
+            usleep(100000);
+            continue;
         }
+
+        start_time = time(NULL);
+
         info("COURIER %d RECEIVED ORDER: A=%d, B=%d, C=%d\n", getpid(), order.A, order.B, order.C);
+
         SharedData *shared_data = (SharedData *)shmat(shmid, NULL, 0);
         if (shared_data == (void *)-1)
         {
             perror("shmat");
             exit(1);
         }
+
         if (order.A <= shared_data->A && order.B <= shared_data->B && order.C <= shared_data->C)
         {
             shared_data->A -= order.A;
             shared_data->B -= order.B;
             shared_data->C -= order.C;
 
-            warn("NEW STOCK: A=%d, B=%d, C=%d\n", shared_data->A, shared_data->B, shared_data->C);
+            state("NEW STOCK: A=%d, B=%d, C=%d\n", shared_data->A, shared_data->B, shared_data->C);
 
             int total_cost = (order.A * shared_data->price_a) + (order.B * shared_data->price_b) + (order.C * shared_data->price_c);
 
@@ -142,18 +154,16 @@ int main(int argc, char *argv[])
         wait(NULL);
     }
 
-    sem_t *sem = sem_open("/stop_semaphore", O_CREAT, 0666, 0);
-    if (sem == SEM_FAILED)
+    info("ALL COURIERS EXITED\n");
+
+    StopCounter stop_counter;
+    stop_counter.mtype = 3;
+    if (msgsnd(msgid, &stop_counter, sizeof(StopCounter) - sizeof(long), 0) < 0)
     {
-        perror("sem_open");
-        return 1;
+        perror("msgsnd");
+        exit(1);
     }
-
-    printf("Wysyłam 'sygnał' poprzez semafor...\n");
-    sem_post(sem);
-
-    sem_close(sem);
-
-    msgctl(msgid, IPC_RMID, NULL);
+    info("STOP MESSAGE SENT\n");
+    shmctl(shmid, IPC_RMID, NULL);
     return 0;
 }

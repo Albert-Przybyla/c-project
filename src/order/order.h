@@ -17,6 +17,11 @@ typedef struct
     int total_cost;
 } PaymentResponse;
 
+typedef struct
+{
+    long mtype;
+} StopCounter;
+
 Order generate_order(int id, int max_A, int max_B, int max_C);
 
 #endif

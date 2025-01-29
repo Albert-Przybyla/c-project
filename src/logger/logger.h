@@ -9,6 +9,7 @@
 #define GREEN "\x1b[32m"
 #define YELLOW "\x1b[33m"
 #define BLUE "\x1b[34m"
+#define MAGENTA "\x1b[35m"
 
 void log_message(const char *color, const char *format, ...);
 
@@ -16,5 +17,6 @@ void log_message(const char *color, const char *format, ...);
 #define info(...) log_message(GREEN, __VA_ARGS__)
 #define warn(...) log_message(YELLOW, __VA_ARGS__)
 #define error(...) log_message(RED, __VA_ARGS__)
+#define state(...) log_message(MAGENTA, __VA_ARGS__)
 
 #endif
