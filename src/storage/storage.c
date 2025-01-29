@@ -7,6 +7,7 @@
 #include <sys/shm.h>
 
 #include "../validators/validator.h"
+#include "../validators/utils.h"
 #include "../order/order.h"
 
 #define COURIER_COUNT 3
@@ -28,6 +29,21 @@ void runCourier(int msgid)
     }
 }
 
+int processOrder(Order order, int *a, int *b, int *c, int price_a, int price_b, int price_c)
+{
+    if (order.A > *a || order.B > *b || order.C > *c)
+    {
+        return -1;
+    }
+    a -= order.A;
+    b -= order.B;
+    c -= order.C;
+    printf("Courier %d processed order: A=%d, B=%d, C=%d\n", getpid(), order.A, order.B, order.C);
+    printf("Courier %d stock: A=%d, B=%d, C=%d\n", getpid(), a, b, c);
+    printf("Courier %d price: A=%d GLD, B=%d GLD, C=%d GLD\n", getpid(), price_a, price_b, price_c);
+    return order.A * price_a + order.B * price_b + order.C * price_c;
+}
+
 int main(int argc, char *argv[])
 {
     if (!validate_storage(argc, argv))
@@ -36,7 +52,8 @@ int main(int argc, char *argv[])
     }
 
     const char *config_file_path = argv[1];
-    const char *key = argv[2];
+    int key = get_key(argv[2]);
+    printf("Key: %d\n", key);
     int a = 0, b = 0, c = 0;
     int price_a = 0, price_b = 0, price_c = 0;
 
@@ -47,8 +64,7 @@ int main(int argc, char *argv[])
 
     printf("Storage initialized:\n\tStock: A=%d, B=%d, C=%d\n\tPrices: A=%d GLD, B=%d GLD, C=%d GLD\n", a, b, c, price_a, price_b, price_c);
 
-    key_t msg_key = ftok(key, 'M');
-    int msgid = msgget(msg_key, 0666 | IPC_CREAT);
+    int msgid = msgget(key, IPC_CREAT | 0666);
     if (msgid < 0)
     {
         perror("msgget");
