@@ -4,11 +4,19 @@
 typedef struct
 {
     long mtype;
+    int order_id;
     int A;
     int B;
     int C;
 } Order;
 
-Order generate_order(int max_A, int max_B, int max_C);
+typedef struct
+{
+    long mtype;
+    int order_id;
+    int total_cost;
+} PaymentResponse;
+
+Order generate_order(int id, int max_A, int max_B, int max_C);
 
 #endif

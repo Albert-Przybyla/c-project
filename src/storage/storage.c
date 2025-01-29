@@ -12,7 +12,43 @@
 
 #define COURIER_COUNT 3
 
-void runCourier(int msgid)
+typedef struct
+{
+    int A, B, C;
+    int price_a, price_b, price_c;
+} SharedData;
+
+int createSharedMemory()
+{
+    int shmid = shmget(IPC_PRIVATE, sizeof(SharedData), IPC_CREAT | 0666);
+    if (shmid < 0)
+    {
+        perror("shmget");
+        exit(1);
+    }
+    return shmid;
+}
+
+void initSharedMemory(int shmid, int a, int b, int c, int price_a, int price_b, int price_c)
+{
+    SharedData *shared_data = (SharedData *)shmat(shmid, NULL, 0);
+    if (shared_data == (void *)-1)
+    {
+        perror("shmat");
+        exit(1);
+    }
+
+    shared_data->A = a;
+    shared_data->B = b;
+    shared_data->C = c;
+    shared_data->price_a = price_a;
+    shared_data->price_b = price_b;
+    shared_data->price_c = price_c;
+
+    printf("Shared memory initialized: A=%d, B=%d, C=%d\n", shared_data->A, shared_data->B, shared_data->C);
+}
+
+void runCourier(int msgid, int shmid)
 {
     printf("Courier %d started\n", getpid());
     while (1)
@@ -24,24 +60,42 @@ void runCourier(int msgid)
             exit(1);
         }
         printf("Courier %d received new order: A=%d, B=%d, C=%d\n", getpid(), order.A, order.B, order.C);
+        SharedData *shared_data = (SharedData *)shmat(shmid, NULL, 0);
+        if (shared_data == (void *)-1)
+        {
+            perror("shmat");
+            exit(1);
+        }
+        if (order.A <= shared_data->A && order.B <= shared_data->B && order.C <= shared_data->C)
+        {
+            shared_data->A -= order.A;
+            shared_data->B -= order.B;
+            shared_data->C -= order.C;
 
+            printf("new stock: A=%d, B=%d, C=%d\n", shared_data->A, shared_data->B, shared_data->C);
+
+            int total_cost = (order.A * shared_data->price_a) + (order.B * shared_data->price_b) + (order.C * shared_data->price_c);
+            printf("Total cost for the order: %d\n", total_cost);
+
+            PaymentResponse payment_response;
+            payment_response.mtype = 2;
+            payment_response.order_id = order.order_id;
+            payment_response.total_cost = total_cost;
+            if (msgsnd(msgid, &payment_response, sizeof(PaymentResponse) - sizeof(long), 0) < 0)
+            {
+                perror("msgsnd");
+                exit(1);
+            }
+        }
+        else
+        {
+            printf("Courier %d could not process order: A=%d, B=%d, C=%d\n", getpid(), order.A, order.B, order.C);
+            exit(0);
+        }
+
+        shmdt(shared_data);
         usleep(1500000);
     }
-}
-
-int processOrder(Order order, int *a, int *b, int *c, int price_a, int price_b, int price_c)
-{
-    if (order.A > *a || order.B > *b || order.C > *c)
-    {
-        return -1;
-    }
-    a -= order.A;
-    b -= order.B;
-    c -= order.C;
-    printf("Courier %d processed order: A=%d, B=%d, C=%d\n", getpid(), order.A, order.B, order.C);
-    printf("Courier %d stock: A=%d, B=%d, C=%d\n", getpid(), a, b, c);
-    printf("Courier %d price: A=%d GLD, B=%d GLD, C=%d GLD\n", getpid(), price_a, price_b, price_c);
-    return order.A * price_a + order.B * price_b + order.C * price_c;
 }
 
 int main(int argc, char *argv[])
@@ -61,6 +115,8 @@ int main(int argc, char *argv[])
     {
         return 1;
     }
+    int shmid = createSharedMemory();
+    initSharedMemory(shmid, a, b, c, price_a, price_b, price_c);
 
     printf("Storage initialized:\n\tStock: A=%d, B=%d, C=%d\n\tPrices: A=%d GLD, B=%d GLD, C=%d GLD\n", a, b, c, price_a, price_b, price_c);
 
@@ -75,10 +131,12 @@ int main(int argc, char *argv[])
     {
         if (fork() == 0)
         {
-            runCourier(msgid);
+            runCourier(msgid, shmid);
             exit(0);
         }
     }
+
+    printf("Storage started\n");
 
     for (int i = 0; i < COURIER_COUNT; i++)
     {
